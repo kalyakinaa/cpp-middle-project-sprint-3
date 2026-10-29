@@ -1,10 +1,10 @@
 #pragma once
 
 #include <concepts>
-#include <flat_set>
 #include <initializer_list>
 #include <span>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -30,7 +30,7 @@ public:
     using reverse_iterator = typename BookContainer::reverse_iterator;
     using const_reverse_iterator = typename BookContainer::const_reverse_iterator;
 
-    using AuthorContainer = std::flat_set<std::string, TransparentStringLess>;
+    using AuthorContainer = std::unordered_set<std::string, TransparentStringHash, TransparentStringEqual>;
 
     BookDatabase() = default;
 
@@ -80,12 +80,15 @@ public:
     const_reference at(size_type i) const { return books_.at(i); }
 
     void PushBack(const Book &book) {
-        books_.push_back(book);
-        authors_.insert(std::string(book.author));
+        auto [it, inserted] = authors_.insert(std::string(book.author));
+        Book copy = book;
+        copy.author = *it;
+        books_.push_back(std::move(copy));
     }
 
     void PushBack(Book &&book) {
-        authors_.insert(std::string(book.author));
+        auto [it, inserted] = authors_.insert(std::string(book.author));
+        book.author = *it;
         books_.push_back(std::move(book));
     }
 
@@ -93,14 +96,15 @@ public:
         requires std::constructible_from<Book, Args...>
     void EmplaceBack(Args &&...args) {
         auto &book = books_.emplace_back(std::forward<Args>(args)...);
-        authors_.insert(std::string(book.author));
+        auto [it, inserted] = authors_.insert(std::string(book.author));
+        book.author = *it;
     }
 
-    std::span<const Book> GetBooks() const { return books_; }
-    std::span<Book> GetBooks() { return books_; }
+    [[nodiscard]] std::span<const Book> GetBooks() const { return books_; }
+    [[nodiscard]] std::span<Book> GetBooks() { return books_; }
 
-    const AuthorContainer &GetAuthors() const { return authors_; }
-    const AuthorContainer &GetAuthors() { return authors_; }
+    [[nodiscard]] const AuthorContainer &GetAuthors() const { return authors_; }
+    [[nodiscard]] const AuthorContainer &GetAuthors() { return authors_; }
 
 private:
     BookContainer books_;

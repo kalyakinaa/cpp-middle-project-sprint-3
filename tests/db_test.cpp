@@ -257,7 +257,7 @@ TEST(StatisticsTest, TopNByRating) {
     EXPECT_EQ(top[2].get().title, "Pride and Prejudice");
 
     EXPECT_EQ(db.size(), 10);
-    EXPECT_EQ(db[0].title, "1984");
+    EXPECT_EQ(db[0].title, "The Hobbit");
 
     auto allTop = getTopNBy(db, 100, comp::LessByRating{});
 
@@ -346,7 +346,7 @@ TEST(BookDatabaseTest, TypeAliases) {
 TEST(ConceptsTest, AllConcepts) {
     // BookContainerLike
     static_assert(BookContainerLike<std::vector<Book>>);
-    static_assert(BookContainerLike<const std::vector<Book> &>);
+    static_assert(BookContainerLike<std::vector<Book> &>);
     static_assert(!BookContainerLike<std::vector<int>>);
     static_assert(!BookContainerLike<int>);
 

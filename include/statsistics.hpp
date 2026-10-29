@@ -18,17 +18,22 @@
 namespace bookdb {
 
 template <BookContainerLike T, typename Comparator = TransparentStringLess>
-auto buildAuthorHistogramFlat(const BookDatabase<T> &cont, Comparator comp = {}) {
+[[nodiscard]] auto buildAuthorHistogramFlat(const BookDatabase<T> &cont, Comparator comp = {}) {
     std::flat_map<std::string, std::size_t, Comparator> histogram(comp);
 
     for (const Book &book : cont.GetBooks()) {
-        ++histogram[std::string(book.author)];
+        auto it = histogram.lower_bound(book.author);
+        if (it != histogram.end() && it->first == book.author) {
+            ++it->second;
+        } else {
+            histogram.emplace_hint(it, std::string(book.author), 1);
+        }
     }
     return histogram;
 }
 
 template <BookIterator It, BookSentinel<It> Sent>
-auto calculateGenreRatings(It first, Sent last) {
+[[nodiscard]] auto calculateGenreRatings(It first, Sent last) {
     std::flat_map<Genre, std::pair<double, std::size_t>> acc;
 
     for (; first != last; ++first) {
@@ -47,7 +52,7 @@ auto calculateGenreRatings(It first, Sent last) {
 }
 
 template <BookContainerLike T>
-double calculateAverageRating(const BookDatabase<T> &books) {
+[[nodiscard]] double calculateAverageRating(const BookDatabase<T> &books) {
     auto span = books.GetBooks();
     if (span.empty()) {
         return 0.0;
@@ -59,7 +64,7 @@ double calculateAverageRating(const BookDatabase<T> &books) {
 }
 
 template <BookContainerLike T>
-auto sampleRandomBooks(const BookDatabase<T> &cont, std::size_t num) {
+[[nodiscard]] auto sampleRandomBooks(const BookDatabase<T> &cont, std::size_t num) {
     std::vector<std::reference_wrapper<const Book>> result;
     auto books = cont.GetBooks();
 
@@ -74,7 +79,7 @@ auto sampleRandomBooks(const BookDatabase<T> &cont, std::size_t num) {
 }
 
 template <BookContainerLike T, typename Comparator = comp::LessByRating>
-auto getTopNBy(BookDatabase<T> &cont, std::size_t n, Comparator comp = {}) {
+[[nodiscard]] auto getTopNBy(BookDatabase<T> &cont, std::size_t n, Comparator comp = {}) {
     std::vector<std::reference_wrapper<const Book>> result;
 
     auto books = cont.GetBooks();
@@ -83,19 +88,13 @@ auto getTopNBy(BookDatabase<T> &cont, std::size_t n, Comparator comp = {}) {
         return result;
     }
 
-    std::vector<const Book *> ptrs;
-    ptrs.reserve(books.size());
-    for (const Book &book : books) {
-        ptrs.push_back(&book);
-    }
+    std::partial_sort(books.begin(), books.begin() + static_cast<std::ptrdiff_t>(take), books.end(),
+                      [&comp](const Book &a, const Book &b) { return comp(b, a); });
 
-    auto reverse_comp = [&comp](const Book *a, const Book *b) { return comp(*b, *a); };
-    std::partial_sort(ptrs.begin(), ptrs.begin() + static_cast<std::ptrdiff_t>(take), ptrs.end(), reverse_comp);
-
-    // std::transform + back_inserter — без resize (reference_wrapper не default-constructible)
     result.reserve(take);
-    std::transform(ptrs.begin(), ptrs.begin() + static_cast<std::ptrdiff_t>(take), std::back_inserter(result),
-                   [](const Book *p) { return std::cref(*p); });
+    for (std::size_t i = 0; i < take; ++i) {
+        result.emplace_back(std::cref(books[i]));
+    }
     return result;
 }
 

@@ -11,7 +11,7 @@ enum class Genre { Fiction, NonFiction, SciFi, Biography, Mystery, Unknown };
 
 constexpr bool operator<(Genre a, Genre b) { return static_cast<int>(a) < static_cast<int>(b); }
 
-constexpr Genre GenreFromString(std::string_view s) {
+[[nodiscard]] constexpr Genre GenreFromString(std::string_view s) {
     if (s == "Fiction")
         return Genre::Fiction;
     if (s == "NonFiction")
